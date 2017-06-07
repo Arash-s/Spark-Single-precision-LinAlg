@@ -127,7 +127,7 @@ case class ExplainCommand(
       } else if (extended) {
         queryExecution.toString
       } else if (cost) {
-        queryExecution.stringWithStats
+        queryExecution.toStringWithStats
       } else {
         queryExecution.simpleString
       }

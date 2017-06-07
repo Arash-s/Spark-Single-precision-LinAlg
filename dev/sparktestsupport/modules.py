@@ -123,7 +123,6 @@ sql = Module(
     ],
 )
 
-
 hive = Module(
     name="hive",
     dependencies=[sql],
@@ -140,18 +139,6 @@ hive = Module(
     test_tags=[
         "org.apache.spark.tags.ExtendedHiveTest"
     ]
-)
-
-
-repl = Module(
-    name="repl",
-    dependencies=[hive],
-    source_file_regexes=[
-        "repl/",
-    ],
-    sbt_test_goals=[
-        "repl/test",
-    ],
 )
 
 

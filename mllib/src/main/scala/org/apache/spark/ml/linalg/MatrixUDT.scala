@@ -26,7 +26,6 @@ import org.apache.spark.sql.types._
  * via [[org.apache.spark.sql.Dataset]].
  */
 private[spark] class MatrixUDT extends UserDefinedType[Matrix] {
-
   override def sqlType: StructType = {
     // type: 0 = sparse, 1 = dense
     // the dense matrix is built by numRows, numCols, values and isTransposed, all of which are
@@ -40,7 +39,7 @@ private[spark] class MatrixUDT extends UserDefinedType[Matrix] {
       StructField("numCols", IntegerType, nullable = false),
       StructField("colPtrs", ArrayType(IntegerType, containsNull = false), nullable = true),
       StructField("rowIndices", ArrayType(IntegerType, containsNull = false), nullable = true),
-      StructField("values", ArrayType(DoubleType, containsNull = false), nullable = true),
+      StructField("values", ArrayType(FloatType, containsNull = false), nullable = true),
       StructField("isTransposed", BooleanType, nullable = false)
       ))
   }
@@ -77,7 +76,7 @@ private[spark] class MatrixUDT extends UserDefinedType[Matrix] {
         val tpe = row.getByte(0)
         val numRows = row.getInt(1)
         val numCols = row.getInt(2)
-        val values = row.getArray(5).toDoubleArray()
+        val values = row.getArray(5).toFloatArray()
         val isTransposed = row.getBoolean(6)
         tpe match {
           case 0 =>

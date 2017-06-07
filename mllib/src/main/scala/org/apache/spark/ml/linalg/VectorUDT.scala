@@ -36,7 +36,7 @@ private[spark] class VectorUDT extends UserDefinedType[Vector] {
       StructField("type", ByteType, nullable = false),
       StructField("size", IntegerType, nullable = true),
       StructField("indices", ArrayType(IntegerType, containsNull = false), nullable = true),
-      StructField("values", ArrayType(DoubleType, containsNull = false), nullable = true)))
+      StructField("values", ArrayType(FloatType, containsNull = false), nullable = true)))
   }
 
   override def serialize(obj: Vector): InternalRow = {
@@ -68,10 +68,10 @@ private[spark] class VectorUDT extends UserDefinedType[Vector] {
           case 0 =>
             val size = row.getInt(1)
             val indices = row.getArray(2).toIntArray()
-            val values = row.getArray(3).toDoubleArray()
+            val values = row.getArray(3).toFloatArray()
             new SparseVector(size, indices, values)
           case 1 =>
-            val values = row.getArray(3).toDoubleArray()
+            val values = row.getArray(3).toFloatArray()
             new DenseVector(values)
         }
     }

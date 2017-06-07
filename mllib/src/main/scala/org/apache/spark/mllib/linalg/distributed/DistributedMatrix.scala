@@ -36,5 +36,5 @@ trait DistributedMatrix extends Serializable {
   def numCols(): Long
 
   /** Collects data and assembles a local dense breeze matrix (for test only). */
-  private[mllib] def toBreeze(): BDM[Double]
+  private[mllib] def toBreeze(): BDM[Float]
 }

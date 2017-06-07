@@ -39,7 +39,7 @@ private[spark] object BLAS extends Serializable {
   /**
    * y += a * x
    */
-  def axpy(a: Double, x: Vector, y: Vector): Unit = {
+  def axpy(a: Float, x: Vector, y: Vector): Unit = {
     require(x.size == y.size)
     y match {
       case dy: DenseVector =>
@@ -61,21 +61,21 @@ private[spark] object BLAS extends Serializable {
   /**
    * y += a * x
    */
-  private def axpy(a: Double, x: DenseVector, y: DenseVector): Unit = {
+  private def axpy(a: Float, x: DenseVector, y: DenseVector): Unit = {
     val n = x.size
-    f2jBLAS.daxpy(n, a, x.values, 1, y.values, 1)
+    f2jBLAS.saxpy(n, a, x.values, 1, y.values, 1)
   }
 
   /**
    * y += a * x
    */
-  private def axpy(a: Double, x: SparseVector, y: DenseVector): Unit = {
+  private def axpy(a: Float, x: SparseVector, y: DenseVector): Unit = {
     val xValues = x.values
     val xIndices = x.indices
     val yValues = y.values
     val nnz = xIndices.length
 
-    if (a == 1.0) {
+    if (a == 1.0F) {
       var k = 0
       while (k < nnz) {
         yValues(xIndices(k)) += xValues(k)
@@ -91,16 +91,16 @@ private[spark] object BLAS extends Serializable {
   }
 
   /** Y += a * x */
-  private[spark] def axpy(a: Double, X: DenseMatrix, Y: DenseMatrix): Unit = {
+  private[spark] def axpy(a: Float, X: DenseMatrix, Y: DenseMatrix): Unit = {
     require(X.numRows == Y.numRows && X.numCols == Y.numCols, "Dimension mismatch: " +
       s"size(X) = ${(X.numRows, X.numCols)} but size(Y) = ${(Y.numRows, Y.numCols)}.")
-    f2jBLAS.daxpy(X.numRows * X.numCols, a, X.values, 1, Y.values, 1)
+    f2jBLAS.saxpy(X.numRows * X.numCols, a, X.values, 1, Y.values, 1)
   }
 
   /**
    * dot(x, y)
    */
-  def dot(x: Vector, y: Vector): Double = {
+  def dot(x: Vector, y: Vector): Float = {
     require(x.size == y.size,
       "BLAS.dot(x: Vector, y:Vector) was given Vectors with non-matching sizes:" +
       " x.size = " + x.size + ", y.size = " + y.size)
@@ -121,21 +121,21 @@ private[spark] object BLAS extends Serializable {
   /**
    * dot(x, y)
    */
-  private def dot(x: DenseVector, y: DenseVector): Double = {
+  private def dot(x: DenseVector, y: DenseVector): Float = {
     val n = x.size
-    f2jBLAS.ddot(n, x.values, 1, y.values, 1)
+    f2jBLAS.sdot(n, x.values, 1, y.values, 1)
   }
 
   /**
    * dot(x, y)
    */
-  private def dot(x: SparseVector, y: DenseVector): Double = {
+  private def dot(x: SparseVector, y: DenseVector): Float = {
     val xValues = x.values
     val xIndices = x.indices
     val yValues = y.values
     val nnz = xIndices.length
 
-    var sum = 0.0
+    var sum = 0.0F
     var k = 0
     while (k < nnz) {
       sum += xValues(k) * yValues(xIndices(k))
@@ -147,7 +147,7 @@ private[spark] object BLAS extends Serializable {
   /**
    * dot(x, y)
    */
-  private def dot(x: SparseVector, y: SparseVector): Double = {
+  private def dot(x: SparseVector, y: SparseVector): Float = {
     val xValues = x.values
     val xIndices = x.indices
     val yValues = y.values
@@ -157,7 +157,7 @@ private[spark] object BLAS extends Serializable {
 
     var kx = 0
     var ky = 0
-    var sum = 0.0
+    var sum = 0.0F
     // y catching x
     while (kx < nnzx && ky < nnzy) {
       val ix = xIndices(kx)
@@ -193,7 +193,7 @@ private[spark] object BLAS extends Serializable {
             while (k < nnz) {
               val j = sxIndices(k)
               while (i < j) {
-                dyValues(i) = 0.0
+                dyValues(i) = 0.0F
                 i += 1
               }
               dyValues(i) = sxValues(k)
@@ -201,7 +201,7 @@ private[spark] object BLAS extends Serializable {
               k += 1
             }
             while (i < n) {
-              dyValues(i) = 0.0
+              dyValues(i) = 0.0F
               i += 1
             }
           case dx: DenseVector =>
@@ -215,12 +215,12 @@ private[spark] object BLAS extends Serializable {
   /**
    * x = a * x
    */
-  def scal(a: Double, x: Vector): Unit = {
+  def scal(a: Float, x: Vector): Unit = {
     x match {
       case sx: SparseVector =>
-        f2jBLAS.dscal(sx.values.length, a, sx.values, 1)
+        f2jBLAS.sscal(sx.values.length, a, sx.values, 1)
       case dx: DenseVector =>
-        f2jBLAS.dscal(dx.values.length, a, dx.values, 1)
+        f2jBLAS.sscal(dx.values.length, a, dx.values, 1)
       case _ =>
         throw new IllegalArgumentException(s"scal doesn't support vector type ${x.getClass}.")
     }
@@ -239,7 +239,7 @@ private[spark] object BLAS extends Serializable {
    *
    * @param U the upper triangular part of the matrix in a [[DenseVector]](column major)
    */
-  def spr(alpha: Double, v: Vector, U: DenseVector): Unit = {
+  def spr(alpha: Float, v: Vector, U: DenseVector): Unit = {
     spr(alpha, v, U.values)
   }
 
@@ -251,14 +251,14 @@ private[spark] object BLAS extends Serializable {
    * @param x The [[DenseVector]] transformed by A.
    * @param y The [[DenseVector]] to be modified in place.
    */
-  def dspmv(
+  def sspmv(
       n: Int,
-      alpha: Double,
+      alpha: Float,
       A: DenseVector,
       x: DenseVector,
-      beta: Double,
+      beta: Float,
       y: DenseVector): Unit = {
-    f2jBLAS.dspmv("U", n, alpha, A.values, x.values, 1, beta, y.values, 1)
+    f2jBLAS.sspmv("U", n, alpha, A.values, x.values, 1, beta, y.values, 1)
   }
 
   /**
@@ -266,11 +266,11 @@ private[spark] object BLAS extends Serializable {
    *
    * @param U the upper triangular part of the matrix packed in an array (column major)
    */
-  def spr(alpha: Double, v: Vector, U: Array[Double]): Unit = {
+  def spr(alpha: Float, v: Vector, U: Array[Float]): Unit = {
     val n = v.size
     v match {
       case DenseVector(values) =>
-        NativeBLAS.dspr("U", n, alpha, values, 1, U)
+        NativeBLAS.sspr("U", n, alpha, values, 1, U)
       case SparseVector(size, indices, values) =>
         val nnz = indices.length
         var colStartIdx = 0
@@ -278,7 +278,7 @@ private[spark] object BLAS extends Serializable {
         var col = 0
         var j = 0
         var i = 0
-        var av = 0.0
+        var av = 0.0F
         while (j < nnz) {
           col = indices(j)
           // Skip empty columns.
@@ -302,7 +302,7 @@ private[spark] object BLAS extends Serializable {
    * @param x the vector x that contains the n elements.
    * @param A the symmetric matrix A. Size of n x n.
    */
-  def syr(alpha: Double, x: Vector, A: DenseMatrix) {
+  def syr(alpha: Float, x: Vector, A: DenseMatrix) {
     val mA = A.numRows
     val nA = A.numCols
     require(mA == nA, s"A is not a square matrix (and hence is not symmetric). A: $mA x $nA")
@@ -316,11 +316,11 @@ private[spark] object BLAS extends Serializable {
     }
   }
 
-  private def syr(alpha: Double, x: DenseVector, A: DenseMatrix) {
+  private def syr(alpha: Float, x: DenseVector, A: DenseMatrix) {
     val nA = A.numRows
     val mA = A.numCols
 
-    nativeBLAS.dsyr("U", x.size, alpha, x.values, 1, A.values, nA)
+    nativeBLAS.ssyr("U", x.size, alpha, x.values, 1, A.values, nA)
 
     // Fill lower triangular part of A
     var i = 0
@@ -334,7 +334,7 @@ private[spark] object BLAS extends Serializable {
     }
   }
 
-  private def syr(alpha: Double, x: SparseVector, A: DenseMatrix) {
+  private def syr(alpha: Float, x: SparseVector, A: DenseMatrix) {
     val mA = A.numCols
     val xIndices = x.indices
     val xValues = x.values
@@ -363,18 +363,18 @@ private[spark] object BLAS extends Serializable {
    * @param C the resulting matrix C. Size of m x n. C.isTransposed must be false.
    */
   def gemm(
-      alpha: Double,
+      alpha: Float,
       A: Matrix,
       B: DenseMatrix,
-      beta: Double,
+      beta: Float,
       C: DenseMatrix): Unit = {
     require(!C.isTransposed,
       "The matrix C cannot be the product of a transpose() call. C.isTransposed must be false.")
-    if (alpha == 0.0 && beta == 1.0) {
+    if (alpha == 0.0F && beta == 1.0F) {
       // gemm: alpha is equal to 0 and beta is equal to 1. Returning C.
       return
-    } else if (alpha == 0.0) {
-      f2jBLAS.dscal(C.values.length, beta, C.values, 1)
+    } else if (alpha == 0.0F) {
+      f2jBLAS.sscal(C.values.length, beta, C.values, 1)
     } else {
       A match {
         case sparse: SparseMatrix => gemm(alpha, sparse, B, beta, C)
@@ -390,10 +390,10 @@ private[spark] object BLAS extends Serializable {
    * For `DenseMatrix` A.
    */
   private def gemm(
-      alpha: Double,
+      alpha: Float,
       A: DenseMatrix,
       B: DenseMatrix,
-      beta: Double,
+      beta: Float,
       C: DenseMatrix): Unit = {
     val tAstr = if (A.isTransposed) "T" else "N"
     val tBstr = if (B.isTransposed) "T" else "N"
@@ -406,7 +406,7 @@ private[spark] object BLAS extends Serializable {
       s"The rows of C don't match the rows of A. C: ${C.numRows}, A: ${A.numRows}")
     require(B.numCols == C.numCols,
       s"The columns of C don't match the columns of B. C: ${C.numCols}, A: ${B.numCols}")
-    nativeBLAS.dgemm(tAstr, tBstr, A.numRows, B.numCols, A.numCols, alpha, A.values, lda,
+    nativeBLAS.sgemm(tAstr, tBstr, A.numRows, B.numCols, A.numCols, alpha, A.values, lda,
       B.values, ldb, beta, C.values, C.numRows)
   }
 
@@ -415,10 +415,10 @@ private[spark] object BLAS extends Serializable {
    * For `SparseMatrix` A.
    */
   private def gemm(
-      alpha: Double,
+      alpha: Float,
       A: SparseMatrix,
       B: DenseMatrix,
-      beta: Double,
+      beta: Float,
       C: DenseMatrix): Unit = {
     val mA: Int = A.numRows
     val nB: Int = B.numCols
@@ -447,7 +447,7 @@ private[spark] object BLAS extends Serializable {
           while (rowCounterForA < mA) {
             var i = AcolPtrs(rowCounterForA)
             val indEnd = AcolPtrs(rowCounterForA + 1)
-            var sum = 0.0
+            var sum = 0.0F
             while (i < indEnd) {
               sum += Avals(i) * Bvals(Bstart + ArowIndices(i))
               i += 1
@@ -465,7 +465,7 @@ private[spark] object BLAS extends Serializable {
           while (rowCounterForA < mA) {
             var i = AcolPtrs(rowCounterForA)
             val indEnd = AcolPtrs(rowCounterForA + 1)
-            var sum = 0.0
+            var sum = 0.0F
             while (i < indEnd) {
               sum += Avals(i) * B(ArowIndices(i), colCounterForB)
               i += 1
@@ -479,8 +479,8 @@ private[spark] object BLAS extends Serializable {
       }
     } else {
       // Scale matrix first if `beta` is not equal to 1.0
-      if (beta != 1.0) {
-        f2jBLAS.dscal(C.values.length, beta, C.values, 1)
+      if (beta != 1.0F) {
+        f2jBLAS.sscal(C.values.length, beta, C.values, 1)
       }
       // Perform matrix multiplication and add to C. The rows of A are multiplied by the columns of
       // B, and added to C.
@@ -531,19 +531,19 @@ private[spark] object BLAS extends Serializable {
    * @param y the resulting vector y. Size of m x 1.
    */
   def gemv(
-      alpha: Double,
+      alpha: Float,
       A: Matrix,
       x: Vector,
-      beta: Double,
+      beta: Float,
       y: DenseVector): Unit = {
     require(A.numCols == x.size,
       s"The columns of A don't match the number of elements of x. A: ${A.numCols}, x: ${x.size}")
     require(A.numRows == y.size,
       s"The rows of A don't match the number of elements of y. A: ${A.numRows}, y:${y.size}")
-    if (alpha == 0.0 && beta == 1.0) {
+    if (alpha == 0.0F && beta == 1.0F) {
       // gemv: alpha is equal to 0 and beta is equal to 1. Returning y.
       return
-    } else if (alpha == 0.0) {
+    } else if (alpha == 0.0F) {
       scal(beta, y)
     } else {
       (A, x) match {
@@ -567,15 +567,15 @@ private[spark] object BLAS extends Serializable {
    * For `DenseMatrix` A and `DenseVector` x.
    */
   private def gemv(
-      alpha: Double,
+      alpha: Float,
       A: DenseMatrix,
       x: DenseVector,
-      beta: Double,
+      beta: Float,
       y: DenseVector): Unit = {
     val tStrA = if (A.isTransposed) "T" else "N"
     val mA = if (!A.isTransposed) A.numRows else A.numCols
     val nA = if (!A.isTransposed) A.numCols else A.numRows
-    nativeBLAS.dgemv(tStrA, mA, nA, alpha, A.values, mA, x.values, 1, beta,
+    nativeBLAS.sgemv(tStrA, mA, nA, alpha, A.values, mA, x.values, 1, beta,
       y.values, 1)
   }
 
@@ -584,10 +584,10 @@ private[spark] object BLAS extends Serializable {
    * For `DenseMatrix` A and `SparseVector` x.
    */
   private def gemv(
-      alpha: Double,
+      alpha: Float,
       A: DenseMatrix,
       x: SparseVector,
-      beta: Double,
+      beta: Float,
       y: DenseVector): Unit = {
     val mA: Int = A.numRows
     val nA: Int = A.numCols
@@ -602,7 +602,7 @@ private[spark] object BLAS extends Serializable {
     if (A.isTransposed) {
       var rowCounterForA = 0
       while (rowCounterForA < mA) {
-        var sum = 0.0
+        var sum = 0.0F
         var k = 0
         while (k < xNnz) {
           sum += xValues(k) * Avals(xIndices(k) + rowCounterForA * nA)
@@ -614,7 +614,7 @@ private[spark] object BLAS extends Serializable {
     } else {
       var rowCounterForA = 0
       while (rowCounterForA < mA) {
-        var sum = 0.0
+        var sum = 0.0F
         var k = 0
         while (k < xNnz) {
           sum += xValues(k) * Avals(xIndices(k) * mA + rowCounterForA)
@@ -631,10 +631,10 @@ private[spark] object BLAS extends Serializable {
    * For `SparseMatrix` A and `SparseVector` x.
    */
   private def gemv(
-      alpha: Double,
+      alpha: Float,
       A: SparseMatrix,
       x: SparseVector,
-      beta: Double,
+      beta: Float,
       y: DenseVector): Unit = {
     val xValues = x.values
     val xIndices = x.indices
@@ -654,7 +654,7 @@ private[spark] object BLAS extends Serializable {
       while (rowCounter < mA) {
         var i = Arows(rowCounter)
         val indEnd = Arows(rowCounter + 1)
-        var sum = 0.0
+        var sum = 0.0F
         var k = 0
         while (i < indEnd && k < xNnz) {
           if (xIndices(k) == Acols(i)) {
@@ -671,7 +671,7 @@ private[spark] object BLAS extends Serializable {
         rowCounter += 1
       }
     } else {
-      if (beta != 1.0) scal(beta, y)
+      if (beta != 1.0F) scal(beta, y)
 
       var colCounterForA = 0
       var k = 0
@@ -698,10 +698,10 @@ private[spark] object BLAS extends Serializable {
    * For `SparseMatrix` A and `DenseVector` x.
    */
   private def gemv(
-      alpha: Double,
+      alpha: Float,
       A: SparseMatrix,
       x: DenseVector,
-      beta: Double,
+      beta: Float,
       y: DenseVector): Unit = {
     val xValues = x.values
     val yValues = y.values
@@ -717,7 +717,7 @@ private[spark] object BLAS extends Serializable {
       while (rowCounter < mA) {
         var i = Arows(rowCounter)
         val indEnd = Arows(rowCounter + 1)
-        var sum = 0.0
+        var sum = 0.0F
         while (i < indEnd) {
           sum += Avals(i) * xValues(Acols(i))
           i += 1
@@ -726,7 +726,7 @@ private[spark] object BLAS extends Serializable {
         rowCounter += 1
       }
     } else {
-      if (beta != 1.0) scal(beta, y)
+      if (beta != 1.0F) scal(beta, y)
       // Perform matrix-vector multiplication and add to y
       var colCounterForA = 0
       while (colCounterForA < nA) {

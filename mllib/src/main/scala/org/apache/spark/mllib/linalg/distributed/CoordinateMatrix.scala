@@ -30,7 +30,7 @@ import org.apache.spark.rdd.RDD
  * @param value value of the entry
  */
 @Since("1.0.0")
-case class MatrixEntry(i: Long, j: Long, value: Double)
+case class MatrixEntry(i: Long, j: Long, value: Float)
 
 /**
  * Represents a matrix in coordinate format.
@@ -75,32 +75,6 @@ class CoordinateMatrix @Since("1.0.0") (
     new CoordinateMatrix(entries.map(x => MatrixEntry(x.j, x.i, x.value)), numCols(), numRows())
   }
 
-  /** Converts to IndexedRowMatrix. The number of columns must be within the integer range. */
-  @Since("1.0.0")
-  def toIndexedRowMatrix(): IndexedRowMatrix = {
-    val nl = numCols()
-    if (nl > Int.MaxValue) {
-      sys.error(s"Cannot convert to a row-oriented format because the number of columns $nl is " +
-        "too large.")
-    }
-    val n = nl.toInt
-    val indexedRows = entries.map(entry => (entry.i, (entry.j.toInt, entry.value)))
-      .groupByKey()
-      .map { case (i, vectorEntries) =>
-        IndexedRow(i, Vectors.sparse(n, vectorEntries.toSeq))
-      }
-    new IndexedRowMatrix(indexedRows, numRows(), n)
-  }
-
-  /**
-   * Converts to RowMatrix, dropping row indices after grouping by row index.
-   * The number of columns must be within the integer range.
-   */
-  @Since("1.0.0")
-  def toRowMatrix(): RowMatrix = {
-    toIndexedRowMatrix().toRowMatrix()
-  }
-
   /**
    * Converts to BlockMatrix. Creates blocks of `SparseMatrix` with size 1024 x 1024.
    */
@@ -127,13 +101,13 @@ class CoordinateMatrix @Since("1.0.0") (
     val n = numCols()
 
     // Since block matrices require an integer row and col index
-    require(math.ceil(m.toDouble / rowsPerBlock) <= Int.MaxValue,
+    require(math.ceil(m.toFloat / rowsPerBlock) <= Int.MaxValue,
       "Number of rows divided by rowsPerBlock cannot exceed maximum integer.")
-    require(math.ceil(n.toDouble / colsPerBlock) <= Int.MaxValue,
+    require(math.ceil(n.toFloat / colsPerBlock) <= Int.MaxValue,
       "Number of cols divided by colsPerBlock cannot exceed maximum integer.")
 
-    val numRowBlocks = math.ceil(m.toDouble / rowsPerBlock).toInt
-    val numColBlocks = math.ceil(n.toDouble / colsPerBlock).toInt
+    val numRowBlocks = math.ceil(m.toFloat / rowsPerBlock).toInt
+    val numColBlocks = math.ceil(n.toFloat / colsPerBlock).toInt
     val partitioner = GridPartitioner(numRowBlocks, numColBlocks, entries.partitions.length)
 
     val blocks: RDD[((Int, Int), Matrix)] = entries.map { entry =>
@@ -164,10 +138,10 @@ class CoordinateMatrix @Since("1.0.0") (
   }
 
   /** Collects data and assembles a local matrix. */
-  private[mllib] override def toBreeze(): BDM[Double] = {
+  private[mllib] override def toBreeze(): BDM[Float] = {
     val m = numRows().toInt
     val n = numCols().toInt
-    val mat = BDM.zeros[Double](m, n)
+    val mat = BDM.zeros[Float](m, n)
     entries.collect().foreach { case MatrixEntry(i, j, value) =>
       mat(i.toInt, j.toInt) = value
     }

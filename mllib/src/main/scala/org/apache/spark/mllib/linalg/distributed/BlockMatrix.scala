@@ -265,35 +265,7 @@ class BlockMatrix @Since("1.3.0") (
   }
 
 
-  /** Converts to IndexedRowMatrix. The number of columns must be within the integer range. */
-  @Since("1.3.0")
-  def toIndexedRowMatrix(): IndexedRowMatrix = {
-    val cols = numCols().toInt
-
-    require(cols < Int.MaxValue, s"The number of columns should be less than Int.MaxValue ($cols).")
-
-    val rows = blocks.flatMap { case ((blockRowIdx, blockColIdx), mat) =>
-      mat.rowIter.zipWithIndex.map {
-        case (vector, rowIdx) =>
-          blockRowIdx * rowsPerBlock + rowIdx -> (blockColIdx, vector.asBreeze)
-      }
-    }.groupByKey().map { case (rowIdx, vectors) =>
-      val numberNonZeroPerRow = vectors.map(_._2.activeSize).sum.toDouble / cols.toDouble
-
-      val wholeVector = if (numberNonZeroPerRow <= 0.1) { // Sparse at 1/10th nnz
-        BSV.zeros[Double](cols)
-      } else {
-        BDV.zeros[Double](cols)
-      }
-
-      vectors.foreach { case (blockColIdx: Int, vec: BV[Double]) =>
-        val offset = colsPerBlock * blockColIdx
-        wholeVector(offset until Math.min(cols, offset + colsPerBlock)) := vec
-      }
-      new IndexedRow(rowIdx, Vectors.fromBreeze(wholeVector))
-    }
-    new IndexedRowMatrix(rows)
-  }
+ 
 
   /**
    * Collect the distributed matrix on the driver as a `DenseMatrix`.
@@ -311,7 +283,7 @@ class BlockMatrix @Since("1.3.0") (
     val mem = m * n / 125000
     if (mem > 500) logWarning(s"Storing this matrix will require $mem MB of memory!")
     val localBlocks = blocks.collect()
-    val values = new Array[Double](m * n)
+    val values = new Array[Float](m * n)
     localBlocks.foreach { case ((blockRowIndex, blockColIndex), submat) =>
       val rowOffset = blockRowIndex * rowsPerBlock
       val colOffset = blockColIndex * colsPerBlock
@@ -336,9 +308,9 @@ class BlockMatrix @Since("1.3.0") (
   }
 
   /** Collects data and assembles a local dense breeze matrix (for test only). */
-  private[mllib] def toBreeze(): BDM[Double] = {
+  private[mllib] def toBreeze(): BDM[Float] = {
     val localMat = toLocalMatrix()
-    new BDM[Double](localMat.numRows, localMat.numCols, localMat.toArray)
+    new BDM[Float](localMat.numRows, localMat.numCols, localMat.toArray)
   }
 
   /**
@@ -355,7 +327,7 @@ class BlockMatrix @Since("1.3.0") (
    */
   private[mllib] def blockMap(
       other: BlockMatrix,
-      binMap: (BM[Double], BM[Double]) => BM[Double]): BlockMatrix = {
+      binMap: (BM[Float], BM[Float]) => BM[Float]): BlockMatrix = {
     require(numRows() == other.numRows(), "Both matrices must have the same number of rows. " +
       s"A.numRows: ${numRows()}, B.numRows: ${other.numRows()}")
     require(numCols() == other.numCols(), "Both matrices must have the same number of columns. " +
@@ -368,7 +340,7 @@ class BlockMatrix @Since("1.3.0") (
               s"($blockRowIndex, $blockColIndex). Please remove them.")
           }
           if (a.isEmpty) {
-            val zeroBlock = BM.zeros[Double](b.head.numRows, b.head.numCols)
+            val zeroBlock = BM.zeros[Float](b.head.numRows, b.head.numCols)
             val result = binMap(zeroBlock, b.head.asBreeze)
             new MatrixBlock((blockRowIndex, blockColIndex), Matrices.fromBreeze(result))
           } else if (b.isEmpty) {
@@ -394,7 +366,7 @@ class BlockMatrix @Since("1.3.0") (
    */
   @Since("1.3.0")
   def add(other: BlockMatrix): BlockMatrix =
-    blockMap(other, (x: BM[Double], y: BM[Double]) => x + y)
+    blockMap(other, (x: BM[Float], y: BM[Float]) => x + y)
 
   /**
    * Subtracts the given block matrix `other` from `this` block matrix: `this - other`.
@@ -406,7 +378,7 @@ class BlockMatrix @Since("1.3.0") (
    */
   @Since("2.0.0")
   def subtract(other: BlockMatrix): BlockMatrix =
-    blockMap(other, (x: BM[Double], y: BM[Double]) => x - y)
+    blockMap(other, (x: BM[Float], y: BM[Float]) => x - y)
 
   /** Block (i,j) --> Set of destination partitions */
   private type BlockDestinations = Map[(Int, Int), Set[Int]]
